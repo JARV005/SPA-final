@@ -1,0 +1,164 @@
+
+## 1. Pantalla de Login (/login)
+Permite ingresar a un usuario existente (admin o visitante) y guardar su sesión en localStorage.
+
+🔸 src/views/login.html
+----------------------------------
+<div class="container mt-5">
+  <h2>Iniciar Sesión</h2>
+  <form id="loginForm">
+    <div class="mb-3">
+      <label for="email" class="form-label">Correo</label>
+      <input type="email" class="form-control" id="email" required />
+    </div>
+    <div class="mb-3">
+      <label for="password" class="form-label">Contraseña</label>
+      <input type="password" class="form-control" id="password" required />
+    </div>
+    <button type="submit" class="btn btn-primary">Entrar</button>
+    <p class="mt-3">¿No tienes cuenta? <a href="#/register">Regístrate</a></p>
+  </form>
+</div>
+
+🔸 src/js/auth.js
+----------------------------------
+export async function login(email, password) {
+  const res = await fetch(`http://localhost:3000/users?email=${email}&password=${password}`);
+  const users = await res.json();
+
+  if (users.length > 0) {
+    const user = users[0];
+    localStorage.setItem("session", JSON.stringify(user));
+    return user;
+  } else {
+    throw new Error("Credenciales incorrectas");
+  }
+}
+
+🔸 src/js/main.js
+----------------------------------
+import { login } from './auth.js';
+
+if (window.location.hash === "#/login") {
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    try {
+      const user = await login(email, password);
+      if (user) {
+        window.location.hash = "#/dashboard";
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+}
+
+
+## 2. Vista del Dashboard (/dashboard)
+Redirige según el rol. Admin ve gestión de eventos, visitante ve sus eventos registrados.
+
+🔸 src/views/dashboard.html
+----------------------------------
+<div class="container mt-5">
+  <h2>Bienvenido al Panel de Eventos</h2>
+  <div id="dashboardContent"></div>
+</div>
+
+🔸 src/js/main.js (función renderDashboard)
+----------------------------------
+function renderDashboard(user) {
+  const dashboard = document.getElementById("dashboardContent");
+
+  if (user.rol === "admin") {
+    dashboard.innerHTML = `
+      <a href="#/dashboard/events/create" class="btn btn-success mb-3">Crear Evento</a>
+      <div id="eventList"></div>
+    `;
+    loadAllEvents(); // función que carga todos los eventos desde la API
+  } else {
+    dashboard.innerHTML = `<h4>Mis eventos registrados</h4><ul id="userEvents"></ul>`;
+    loadUserEvents(user.id); // carga solo eventos donde esté registrado
+  }
+}
+
+if (window.location.hash === "#/dashboard") {
+  const session = JSON.parse(localStorage.getItem("session"));
+  if (!session) {
+    window.location.hash = "#/login";
+  } else {
+    renderDashboard(session);
+  }
+}
+
+
+## 3. Registro (/register)
+
+🔸 src/views/register.html
+----------------------------------
+<div class="container mt-5">
+  <h2>Registro de Usuario</h2>
+  <form id="registerForm">
+    <div class="mb-3">
+      <label for="email" class="form-label">Correo</label>
+      <input type="email" class="form-control" id="email" required />
+    </div>
+    <div class="mb-3">
+      <label for="password" class="form-label">Contraseña</label>
+      <input type="password" class="form-control" id="password" required />
+    </div>
+    <div class="mb-3">
+      <label for="rol" class="form-label">Rol</label>
+      <select class="form-select" id="rol">
+        <option value="visitante">Visitante</option>
+        <option value="admin">Administrador</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Registrarse</button>
+    <p class="mt-3">¿Ya tienes cuenta? <a href="#/login">Inicia sesión</a></p>
+  </form>
+</div>
+
+🔸 auth.js
+----------------------------------
+export async function register(email, password, rol) {
+  const res = await fetch(`http://localhost:3000/users?email=${email}`);
+  const existing = await res.json();
+
+  if (existing.length > 0) throw new Error("Usuario ya registrado");
+
+  const user = { email, password, rol };
+  const created = await fetch("http://localhost:3000/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(user)
+  });
+
+  const newUser = await created.json();
+  localStorage.setItem("session", JSON.stringify(newUser));
+  return newUser;
+}
+
+🔸 main.js
+----------------------------------
+import { register } from './auth.js';
+
+if (window.location.hash === "#/register") {
+  document.getElementById("registerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const rol = document.getElementById("rol").value;
+
+    try {
+      const user = await register(email, password, rol);
+      window.location.hash = "#/dashboard";
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+}
+
+(Continuación en el archivo siguiente por límite de espacio)
